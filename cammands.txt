@@ -1,11 +1,36 @@
 python3 -m venv myenv
 myenv\Scripts\activate 
-
+---------------------------------------------
 
 uvicorn main:app --reload      
-
+--------------------------------------------
 for update git
 
 git add .
 git commit -m "camments"
 git push origin main
+
+--------------------------------------------
+Cohere Model's :
+
+c4ai-aya-expanse-32b
+c4ai-aya-expanse-8b
+command                   ---  we use this model(line ~ 550)
+command-light
+command-light-nightly
+command-nightly
+command-r
+command-r-08-2024
+command-r-plus
+command-r-plus-08-2024
+command-r7b-12-2024
+
+--------------------------------------------------------------
+Together AI model's :
+Popular Serverless Endpoints
+
+meta-llama/Llama-3.3-70B-Instruct-Turbo
+meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo-128K
+deepseek-ai/DeepSeek-V3
+deepseek-ai/DeepSeek-R1                    -- currently used (line ~ 567)
+meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo

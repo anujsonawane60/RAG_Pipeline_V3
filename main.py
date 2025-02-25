@@ -73,7 +73,6 @@ class QueryRequest(BaseModel):
             }
         }
 
-
 class ServiceManager:
     def __init__(self):
         self.cohere_client = None
@@ -147,6 +146,7 @@ class ServiceManager:
         except Exception as e:
             print(f"Error deleting index: {str(e)}")
             raise Exception(f"Failed to delete index: {str(e)}")
+
 class TextProcessor:
     @staticmethod
     def extract_text_from_pdf(file_bytes):
@@ -564,7 +564,7 @@ Please provide a clear and concise answer based on the context above."""
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+                    "model": "deepseek-ai/DeepSeek-R1",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
