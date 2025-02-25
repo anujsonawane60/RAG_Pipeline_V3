@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Management - RAG Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* Add these styles to handle bullet points and formatting */
+        .chat-message {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+    
+        .bot-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+        }
+    
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+    
+        /* Specific styles for bullet points */
+        .chat-message ul {
+            padding-left: 20px;
+            margin: 10px 0;
+            list-style-type: disc;
+        }
+    
+        .chat-message li {
+            margin: 5px 0;
+            display: list-item;
+        }
+    
+        /* Preserve line breaks and spacing */
+        .chat-message p {
+            margin-bottom: 0.5rem;
+        }
+        
+        
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">RAG Chatbot Platform</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/static/chatbot.html">Chatbots</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <!-- Chatbot List -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Chatbots</h5>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateChatbotModal()">Create New</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="chatbotList" class="list-group">
+                            <!-- Chatbots will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0" id="currentChatbotName">Select a Chatbot</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chat-container mb-3" id="chatMessages">
+                            <!-- Chat messages will appear here -->
+                        </div>
+                        <div class="input-group mb-3">
+                            <select class="form-select" id="modelSelect" style="max-width: 150px;">
+                                <option value="openai">OpenAI</option>
+                                <option value="cohere">Cohere</option>
+                                <option value="togetherai">TogetherAI</option>
+                            </select>
+                            <input type="text" class="form-control" id="messageInput" placeholder="Type your message...">
+                            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+                        </div>
+                        <div class="file-upload mt-3">
+                            <input type="file" class="form-control" id="fileInput" accept=".pdf,.docx,.txt">
+                            <button class="btn btn-secondary mt-2" onclick="uploadFile()">Upload File</button>
+                        </div>
+                        <div class="file-list mt-3">
+                            <h6>Uploaded Files:</h6>
+                            <ul id="fileList" class="list-group">
+                                <!-- Files will be listed here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Chatbot Modal -->
+    <div class="modal fade" id="createChatbotModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Chatbot</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="chatbotNameInput" placeholder="Enter chatbot name">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createChatbot()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentChatbot = null;
+        const createModal = new bootstrap.Modal(document.getElementById('createChatbotModal'));
+
+        // Load chatbots on page load
+        document.addEventListener('DOMContentLoaded', loadChatbots);
+
+        function showCreateChatbotModal() {
+            createModal.show();
+        }
+
+        async function loadChatbots() {
+            try {
+                const response = await fetch('/chatbots');
+                const data = await response.json();
+                const chatbotList = document.getElementById('chatbotList');
+                chatbotList.innerHTML = '';
+
+                data.chatbots.forEach(chatbot => {
+                    const button = document.createElement('button');
+                    button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    button.innerHTML = `
+                        ${chatbot.name}
+                        <button class="btn btn-danger btn-sm" onclick="deleteChatbot('${chatbot.name}')">Delete</button>
+                    `;
+                    button.onclick = () => selectChatbot(chatbot.name);
+                    chatbotList.appendChild(button);
+                });
+            } catch (error) {
+                console.error('Error loading chatbots:', error);
+            }
+        }
+
+        async function createChatbot() {
+            const nameInput = document.getElementById('chatbotNameInput');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter a chatbot name');
+                return;
+            }
+        
+            try {
+                const response = await fetch('/chatbot/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name })
+                });
+        
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    createModal.hide();
+                    nameInput.value = '';
+                    await loadChatbots();
+                    alert('Chatbot created successfully!');
+                } else {
+                    alert(data.message || 'Failed to create chatbot');
+                }
+            } catch (error) {
+                console.error('Error creating chatbot:', error);
+                alert('Failed to create chatbot. Please try again.');
+            }
+        }
+        
+        async function uploadFile() {
+            if (!currentChatbot) {
+                alert('Please select a chatbot first');
+                return;
+            }
+        
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+        
+            // Validate file type
+            const allowedTypes = ['.pdf', '.docx', '.txt'];
+            const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+            if (!allowedTypes.includes(fileExtension)) {
+                alert('Only PDF, DOCX, and TXT files are allowed');
+                return;
+            }
+        
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB');
+                return;
+            }
+        
+            const formData = new FormData();
+            formData.append('file', file);
+        
+            try {
+                const response = await fetch(`/chatbot/${currentChatbot}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+        
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert('File uploaded successfully!');
+                    fileInput.value = '';
+                    await loadFiles(currentChatbot);
+                } else {
+                    alert(data.message || 'Failed to upload file');
+                }
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                alert('Failed to upload file. Please try again.');
+            }
+        }
+        
+        // Add this function to handle file input changes
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+                const allowedTypes = ['.pdf', '.docx', '.txt'];
+                
+                if (!allowedTypes.includes(fileExtension)) {
+                    alert('Only PDF, DOCX, and TXT files are allowed');
+                    this.value = '';
+                } else if (file.size > 10 * 1024 * 1024) {
+                    alert('File size must be less than 10MB');
+                    this.value = '';
+                }
+            }
+        });
+        
+
+        async function deleteChatbot(name) {
+            if (confirm(`Are you sure you want to delete ${name}?`)) {
+                try {
+                    await fetch(`/chatbot/${name}`, { method: 'DELETE' });
+                    loadChatbots();
+                    if (currentChatbot === name) {
+                        currentChatbot = null;
+                        document.getElementById('currentChatbotName').textContent = 'Select a Chatbot';
+                        document.getElementById('chatMessages').innerHTML = '';
+                        document.getElementById('fileList').innerHTML = '';
+                    }
+                } catch (error) {
+                    console.error('Error deleting chatbot:', error);
+                }
+            }
+        }
+
+        async function selectChatbot(name) {
+            currentChatbot = name;
+            document.getElementById('currentChatbotName').textContent = name;
+            loadChatHistory(name);
+            loadFiles(name);
+        }
+
+        async function sendMessage() {
+            if (!currentChatbot) {
+                alert('Please select a chatbot first');
+                return;
+            }
+
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            const model = document.getElementById('modelSelect').value;
+
+            if (!message) return;
+
+            try {
+                const response = await fetch(`/chatbot/${currentChatbot}/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: message, model: model })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    appendMessage('user', message);
+                    appendMessage('bot', data.response);
+                    messageInput.value = '';
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+
+        async function loadChatHistory(chatbotName) {
+            try {
+                const response = await fetch(`/chatbot/${chatbotName}/history`);
+                const data = await response.json();
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+
+                data.history.forEach(entry => {
+                    appendMessage('user', entry.query);
+                    appendMessage('bot', entry.answer);
+                });
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+
+        function appendMessage(type, content) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}-message`;
+            messageDiv.textContent = content;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function loadFiles(chatbotName) {
+            try {
+                const response = await fetch(`/chatbots`);
+                const data = await response.json();
+                const chatbot = data.chatbots.find(bot => bot.name === chatbotName);
+                
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                chatbot.files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.textContent = file;
+                    fileList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        // Enter key to send message
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

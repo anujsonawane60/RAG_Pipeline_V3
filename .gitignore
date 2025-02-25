@@ -1,0 +1,26 @@
+# Virtual environment
+myenv/
+venv/
+
+# Environment variables
+.env
+
+# Uploaded files (user-uploaded content)
+uploaded_files/
+
+# Chat history (generated content)
+chat_history/
+
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Log files
+*.log
+
+# IDE project files (example for VS Code)
+.vscode/
+
+# Other common files/folders
+*.DS_Store
+.idea/
