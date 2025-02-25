@@ -27,7 +27,7 @@ This project implements a Retrieval-Augmented Generation (RAG) chatbot platform 
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/your-repo-name.git
+    git clone https://github.com/anujsonawane60/RAG_Pipeline_V3.git
     ```
 2.  Navigate to the project directory:
     ```bash

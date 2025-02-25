@@ -5,4 +5,7 @@ myenv\Scripts\activate
 uvicorn main:app --reload      
 
 for update git
+
 git add .
+git commit -m "camments"
+git push origin main
