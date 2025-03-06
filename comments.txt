@@ -7,7 +7,7 @@ uvicorn main:app --reload
 for update git
 
 git add .
-git commit -m "camments"
+git commit -m "comments"
 git push origin main
 
 --------------------------------------------
