@@ -10,3 +10,5 @@ openai==1.8.0
 requests==2.31.0
 together==0.2.7
 pydantic==2.5.3
+tenacity
+langchain

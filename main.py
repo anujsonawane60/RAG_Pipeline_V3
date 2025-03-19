@@ -419,35 +419,54 @@ async def upload_file(chatbot_name: str, file: UploadFile = File(...)):
             raise HTTPException(400, "No text could be extracted from the file")
 
         # Process chunks
+        # In your upload_file function, modify the embedding section:
+
+# Process chunks
         chunks = TextProcessor.chunk_text(text)
         service_manager = chatbot_manager.chatbots[chatbot_name]["service_manager"]
 
         print(f"Processing {len(chunks)} chunks for file: {file.filename}")
         vectors_to_upsert = []
-        for i, chunk in enumerate(chunks):
-            if chunk.strip():
-                # Get embeddings from Cohere
+
+        # Process in batches of 10 chunks
+        BATCH_SIZE = 10
+        for i in range(0, len(chunks), BATCH_SIZE):
+            batch_chunks = chunks[i:i+BATCH_SIZE]
+            filtered_chunks = [chunk for chunk in batch_chunks if chunk.strip()]
+            
+            if filtered_chunks:
+                # Get embeddings for batch
                 response = service_manager.cohere_client.embed(
-                    texts=[chunk],
+                    texts=filtered_chunks,
                     model='embed-english-v3.0',
                     input_type="search_document"
                 )
-                embedding = response.embeddings[0]
                 
-                vectors_to_upsert.append({
-                    'id': f'{chatbot_name}_chunk_{i}_{os.urandom(4).hex()}',
-                    'values': embedding,
-                    'metadata': {
-                        'text': chunk,
-                        'file_name': file.filename,
-                        'chatbot': chatbot_name
-                    }
-                })
+                # Process batch results
+                for j, embedding in enumerate(response.embeddings):
+                    chunk_index = i + j
+                    if chunk_index < len(chunks):  # Safety check
+                        vectors_to_upsert.append({
+                            'id': f'{chatbot_name}_chunk_{chunk_index}_{os.urandom(4).hex()}',
+                            'values': embedding,
+                            'metadata': {
+                                'text': filtered_chunks[j],
+                                'file_name': file.filename,
+                                'chatbot': chatbot_name
+                            }
+                        })
+                
+                # Add rate limiting delay - stay under 40 calls per minute
+                time.sleep(1.5)  # 1.5 seconds delay
 
         if vectors_to_upsert:
-            print(f"Upserting {len(vectors_to_upsert)} vectors to index")
-            service_manager.index.upsert(vectors=vectors_to_upsert)
-            print("Vector upsert completed successfully")
+            # Upsert vectors in batches to avoid overwhelming Pinecone
+            UPSERT_BATCH_SIZE = 100
+            for i in range(0, len(vectors_to_upsert), UPSERT_BATCH_SIZE):
+                batch = vectors_to_upsert[i:i+UPSERT_BATCH_SIZE]
+                service_manager.index.upsert(vectors=batch)
+                print(f"Upserted batch {i//UPSERT_BATCH_SIZE + 1} of {len(vectors_to_upsert)//UPSERT_BATCH_SIZE + 1}")
+                time.sleep(1)  # Add delay between batches
 
         # Update chatbot files list
         if file.filename not in chatbot_manager.chatbots[chatbot_name]["files"]:
@@ -630,6 +649,7 @@ def test_pinecone_connection():
 if __name__ == "__main__":
     try:
         # Validate environment and create necessary directories
+        print("starting server")
         Config.validate_env_vars()
         
         # Test Pinecone connection
