@@ -9,6 +9,15 @@ for update git
 git add .
 git commit -m "comments"
 git push origin main
+---------------------------------------------
+
+So the specific embedding model you're using is:
+
+Model: embed-english-v3.0 from Cohere
+
+With different input types depending on the use case:
+search_document for the document chunks
+search_query for the user queries
 
 --------------------------------------------
 Cohere Model's :

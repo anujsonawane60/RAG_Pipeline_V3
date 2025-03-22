@@ -528,17 +528,30 @@ async def chat_with_bot(chatbot_name: str, request: QueryRequest):
         # Extract relevant contexts
         contexts = [match.metadata['text'] for match in search_results.matches]
         
-        # Prepare prompt with context
-        system_prompt = """You are a helpful AI assistant. Using the provided context, 
+        # Get chat history
+        chat_history = chatbot_manager.get_chat_history(chatbot_name)
+        # Get the last 3 conversations for context (reduced from 5)
+        recent_history = chat_history[-3:] if len(chat_history) > 3 else chat_history
+        
+        # Prepare prompt with context and chat history
+        system_prompt = """You are a helpful AI assistant. Using the provided context and chat history, 
         answer the user's question. If you cannot find the answer in the context, 
         say "I cannot find the answer in the provided context." 
-        Base your answer solely on the context provided."""
+        Base your answer on both the context and the conversation history provided."""
+
+        # Format chat history for the prompt
+        history_context = ""
+        if recent_history:
+            history_context = "\nPrevious conversation:\n"
+            for entry in recent_history:
+                history_context += f"User: {entry['query']}\nAssistant: {entry['answer']}\n"
 
         user_prompt = f"""Context: {' '.join(contexts)}
+{history_context}
 
-Question: {request.query}
+Current Question: {request.query}
 
-Please provide a clear and concise answer based on the context above."""
+Please provide a clear and concise answer based on both the context and conversation history above."""
 
         try:
             # Get response from selected model
@@ -554,7 +567,9 @@ Please provide a clear and concise answer based on the context above."""
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.7,
-                    max_tokens=500
+                    max_tokens=500,
+                    presence_penalty=0.1,  # Added to encourage more focused responses
+                    frequency_penalty=0.1   # Added to reduce repetition
                 )
                 answer = response.choices[0].message.content
 
@@ -568,7 +583,7 @@ Please provide a clear and concise answer based on the context above."""
                     message=user_prompt,
                     model="command",
                     temperature=0.7,
-                    chat_history=[],
+                    chat_history=[],  # Cohere will use the history from the prompt
                     prompt_truncation='AUTO'
                 )
                 answer = response.text
@@ -583,7 +598,7 @@ Please provide a clear and concise answer based on the context above."""
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "model": "deepseek-ai/DeepSeek-R1",
+                    "model": "mistralai/Mistral-7B-Instruct-v0.2",  # Changed from DeepSeek-R1 to avoid rate limit
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
